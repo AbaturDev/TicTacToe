@@ -9,19 +9,20 @@ class Game
 private:
 	sf::RenderWindow window;
 	sf::Sprite board[3][3];
+	sf::Sprite background;
 
 	sf::Texture crossTexture;
 	sf::Texture backgroundTexture;
 	sf::Texture circleTexture;
-	sf::Texture aiWin;
-	sf::Texture playerWin;
-	sf::Texture tie;
-	sf::Texture emptyTexture;
+	sf::Texture blank;
+	sf::RectangleShape line;
+	sf::Text result;
+	sf::Text info;
+	sf::Font font;
 
-	sf::Sprite background;
-	sf::Sprite result;
 
 	bool playerTurn;	//1->player(true), 0->ai
+	bool isFinished;
 
 public:
 	Game(bool playerTurn = true);
@@ -32,10 +33,14 @@ private:
 	void proccesEvents();
 	void render();
 
+	void setResult(int score);
 	void playerMove(sf::Vector2f mousePosition);
 	void aiMove();
 	bool checkTie();
 	int evaluate();
 	int minmax(int depth, bool isMax, int alpha, int beta);
+	void restart();
+	void setInfo();
+	void setLine(int x, int y, float angle);
 };
 

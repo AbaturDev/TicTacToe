@@ -4,6 +4,13 @@
 
 Game::Game(bool playerTurn) : window(sf::VideoMode(512, 512), "TicTacToe", sf::Style::Default)
 {
+	if (!font.loadFromFile("images/Lato-Black.ttf"))
+	{
+		throw std::runtime_error("Failed to load font");
+	}
+	result.setFont(font);
+	info.setFont(font);
+
 	if (!backgroundTexture.loadFromFile("images/board.png"))
 	{
 		throw std::runtime_error("Failed to load background texture");
@@ -20,6 +27,11 @@ Game::Game(bool playerTurn) : window(sf::VideoMode(512, 512), "TicTacToe", sf::S
 		throw std::runtime_error("Failed to load circle texture");
 	}
 
+	if (!blank.loadFromFile("images/blank.png"))
+	{
+		throw std::runtime_error("Failed to load blank texture");
+	}
+
 	if (circleTexture.getSize() != crossTexture.getSize())
 	{
 		throw std::runtime_error("Difrent sizes of cross and circle textures");
@@ -29,19 +41,19 @@ Game::Game(bool playerTurn) : window(sf::VideoMode(512, 512), "TicTacToe", sf::S
 
 	float scaleX = desiredSize.x / tempSize.x;
 	float scaleY = desiredSize.y / tempSize.y;
+	int gridSize = 170;
 	for (int i = 0; i < 3; i++)
 	{
 		for (int j = 0; j < 3; j++)
 		{
 			board[i][j].setScale(scaleX, scaleY);
+			board[i][j].setTexture(blank);
+			board[i][j].setPosition((i * gridSize + gridSize / 2.0f) - board[i][j].getGlobalBounds().width / 2.0f, (j * gridSize + gridSize / 2.0f) - board[i][j].getGlobalBounds().height / 2.0f);
 		}
 	}
 
-	emptyTexture.create(1, 1);
-	sf::Uint8 transparentPixel[4] = { 0, 0, 0, 0 };
-	emptyTexture.update(transparentPixel);
-
 	this->playerTurn = playerTurn;
+	isFinished = false;
 }
 
 void Game::run()
@@ -64,10 +76,20 @@ void Game::proccesEvents()
 			window.close();
 		}
 
-		if (event.type == sf::Event::MouseButtonPressed && playerTurn == true)
+		if (event.type == sf::Event::MouseButtonPressed && (playerTurn == true && isFinished == false))
 		{
 			sf::Vector2i mousePosition = sf::Mouse::getPosition(window);
 			playerMove(static_cast<sf::Vector2f>(mousePosition));
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape))
+		{
+			window.close();
+		}
+
+		if (sf::Keyboard::isKeyPressed(sf::Keyboard::Space))
+		{
+			restart();
 		}
 	}
 }
@@ -76,27 +98,35 @@ void Game::update()
 {
 	if (evaluate() == -10)
 	{
-		std::cout << "Player wins";
-		window.close();
+		setResult(-10);
+		setInfo();
+		isFinished = true;
 	}
-	if (checkTie())
+
+	else if (checkTie())
 	{
-		std::cout << "TIE";
-		window.close();
+		setResult(0);
+		setInfo();
+		isFinished = true;
 	}
-	if (playerTurn == false)
+
+	if (playerTurn == false && isFinished == false)
 	{
 		aiMove();
 	}
+
 	if (evaluate() == 10)
 	{
-		std::cout << "AI wins";
-		window.close();
+		setResult(10);
+		setInfo();
+		isFinished = true;
 	}
-	if (checkTie())
+
+	else if (checkTie())
 	{
-		std::cout << "TIE";
-		window.close();
+		setResult(0);
+		setInfo();
+		isFinished = true;
 	}
 
 }
@@ -112,85 +142,24 @@ void Game::render()
 			window.draw(board[i][j]);
 		}
 	}
+	if (isFinished) {
+		window.draw(line);
+		window.draw(info);
+		window.draw(result);
+	}
 	window.display();
 }
 
 void Game::playerMove(sf::Vector2f mousePosition)
 {
 	int gridSize = 170;
-	sf::Vector2f position;
+	int x = mousePosition.x / gridSize;
+	int y = mousePosition.y / gridSize;
 
-	// Check which cell was clicked
-	if ((mousePosition.x >= 0 && mousePosition.x < gridSize && mousePosition.y >= 0 && mousePosition.y < gridSize) && board[0][0].getTexture() == nullptr)
+	if (board[x][y].getTexture() == &blank)
 	{
-		// 1st
-		board[0][0].setTexture(crossTexture);
-		position = sf::Vector2f((gridSize / 2.0f) - board[0][0].getGlobalBounds().width / 2.0f, (gridSize / 2.0f) - board[0][0].getGlobalBounds().height / 2.0f);
-		board[0][0].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= gridSize && mousePosition.x < 2 * gridSize && mousePosition.y >= 0 && mousePosition.y < gridSize) && board[0][1].getTexture() == nullptr)
-	{
-		// 2nd
-		board[0][1].setTexture(crossTexture);
-		position = sf::Vector2f(1.5f * gridSize - board[0][1].getGlobalBounds().width / 2.0f, gridSize / 2.0f - board[0][1].getGlobalBounds().height / 2.0f);
-		board[0][1].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= 2 * gridSize && mousePosition.x < 3 * gridSize && mousePosition.y >= 0 && mousePosition.y < gridSize) && board[0][2].getTexture() == nullptr)
-	{
-		// 3rd
-		board[0][2].setTexture(crossTexture);
-		position = sf::Vector2f(2.5f * gridSize - board[0][2].getGlobalBounds().width / 2.0f, gridSize / 2.0f - board[0][2].getGlobalBounds().height / 2.0f);
-		board[0][2].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= 0 && mousePosition.x < gridSize && mousePosition.y >= gridSize && mousePosition.y < 2 * gridSize) && board[1][0].getTexture() == nullptr)
-	{
-		// 4th
-		board[1][0].setTexture(crossTexture);
-		position = sf::Vector2f(gridSize / 2.0f - board[1][0].getGlobalBounds().width / 2.0f, 1.5f * gridSize - board[1][0].getGlobalBounds().height / 2.0f);
-		board[1][0].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= gridSize && mousePosition.x < 2 * gridSize && mousePosition.y >= gridSize && mousePosition.y < 2 * gridSize) && board[1][1].getTexture() == nullptr)
-	{
-		// 5th
-		board[1][1].setTexture(crossTexture);
-		position = sf::Vector2f(1.5f * gridSize - board[1][1].getGlobalBounds().width / 2.0f, 1.5f * gridSize - board[1][1].getGlobalBounds().height / 2.0f);
-		board[1][1].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= 2 * gridSize && mousePosition.x < 3 * gridSize && mousePosition.y >= gridSize && mousePosition.y < 2 * gridSize) && board[1][2].getTexture() == nullptr)
-	{
-		// 6th
-		board[1][2].setTexture(crossTexture);
-		position = sf::Vector2f(2.5f * gridSize - board[1][2].getGlobalBounds().width / 2.0f, 1.5f * gridSize - board[1][2].getGlobalBounds().height / 2.0f);
-		board[1][2].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= 0 && mousePosition.x < gridSize && mousePosition.y >= 2 * gridSize && mousePosition.y < 3 * gridSize) && board[2][0].getTexture() == nullptr)
-	{
-		// 7th
-		board[2][0].setTexture(crossTexture);
-		position = sf::Vector2f(gridSize / 2.0f - board[2][0].getGlobalBounds().width / 2.0f, 2.5f * gridSize - board[2][0].getGlobalBounds().height / 2.0f);
-		board[2][0].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= gridSize && mousePosition.x < 2 * gridSize && mousePosition.y >= 2 * gridSize && mousePosition.y < 3 * gridSize) && board[2][1].getTexture() == nullptr)
-	{
-		// 8th
-		board[2][1].setTexture(crossTexture);
-		position = sf::Vector2f(1.5f * gridSize - board[2][1].getGlobalBounds().width / 2.0f, 2.5f * gridSize - board[2][1].getGlobalBounds().height / 2.0f);
-		board[2][1].setPosition(position);
-		playerTurn = false;
-	}
-	else if ((mousePosition.x >= 2 * gridSize && mousePosition.x < 3 * gridSize && mousePosition.y >= 2 * gridSize && mousePosition.y < 3 * gridSize) && board[2][2].getTexture() == nullptr)
-	{
-		// 9th
-		board[2][2].setTexture(crossTexture);
-		position = sf::Vector2f(2.5f * gridSize - board[2][2].getGlobalBounds().width / 2.0f, 2.5f * gridSize - board[2][2].getGlobalBounds().height / 2.0f);
-		board[2][2].setPosition(position);
+		board[x][y].setTexture(crossTexture, true);
+		board[x][y].setPosition((x*gridSize+gridSize/2.0f)-board[x][y].getGlobalBounds().width/2.0f,(y*gridSize+gridSize/2.0f)-board[x][y].getGlobalBounds().height/2.0f);
 		playerTurn = false;
 	}
 }
@@ -201,7 +170,7 @@ bool Game::checkTie()
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			if (board[i][j].getTexture() == nullptr || board[i][j].getTexture() == &emptyTexture)
+			if (board[i][j].getTexture() == &blank)
 			{
 				return false;
 			}
@@ -214,8 +183,9 @@ int Game::evaluate()
 {
 	for (int i = 0; i < 3; i++)
 	{
-		if (board[i][0].getTexture() == board[i][1].getTexture() && board[i][1].getTexture() == board[i][2].getTexture())
+		if (board[i][0].getTexture() == board[i][1].getTexture() && board[i][1].getTexture() == board[i][2].getTexture() && board[i][0].getTexture() != &blank)
 		{
+			setLine(i, 0, 0);
 			if (board[i][0].getTexture() == &circleTexture)
 			{
 				return +10;
@@ -226,8 +196,9 @@ int Game::evaluate()
 			}
 		}
 
-		if (board[0][i].getTexture() == board[1][i].getTexture() && board[1][i].getTexture() == board[2][i].getTexture() && board[0][i].getTexture() != nullptr)
+		if (board[0][i].getTexture() == board[1][i].getTexture() && board[1][i].getTexture() == board[2][i].getTexture() && board[0][i].getTexture() != &blank)
 		{
+			setLine(0, i, 90);
 			if (board[0][i].getTexture() == &circleTexture)
 			{
 				return +10;
@@ -239,8 +210,9 @@ int Game::evaluate()
 		}
 	}
 
-	if (board[0][0].getTexture() == board[1][1].getTexture() && board[1][1].getTexture() == board[2][2].getTexture() && board[0][0].getTexture() != nullptr)
+	if (board[0][0].getTexture() == board[1][1].getTexture() && board[1][1].getTexture() == board[2][2].getTexture() && board[0][0].getTexture() != &blank)
 	{
+		setLine(0, 0, 45);
 		if (board[0][0].getTexture() == &circleTexture)
 		{
 			return +10;
@@ -250,8 +222,9 @@ int Game::evaluate()
 			return -10;
 		}
 	}
-	else if (board[0][2].getTexture() == board[1][1].getTexture() && board[1][1].getTexture() == board[2][0].getTexture() && board[0][2].getTexture() != nullptr)
+	else if (board[0][2].getTexture() == board[1][1].getTexture() && board[1][1].getTexture() == board[2][0].getTexture() && board[0][2].getTexture() != &blank)
 	{
+		setLine(0, 2, 135);
 		if (board[0][2].getTexture() == &circleTexture)
 		{
 			return +10;
@@ -277,14 +250,14 @@ void Game::aiMove()
 	{
 		for (int j = 0; j < 3; j++)
 		{
-			if (board[i][j].getTexture() == nullptr)
+			if (board[i][j].getTexture() == &blank)
 			{
 				board[i][j].setTexture(circleTexture);
 
 				int move = minmax(0, false, std::numeric_limits<int>::min(), std::numeric_limits<int>::max());
 
-				board[i][j].setTexture(emptyTexture);
-				
+				board[i][j].setTexture(blank);
+
 				if (move > bestValue)
 				{
 					x = i;
@@ -296,8 +269,8 @@ void Game::aiMove()
 	}
 
 	if (x != -1 && y != -1) {
-		board[x][y].setTexture(circleTexture);
-		board[x][y].setPosition((x * gridSize + gridSize / 2.0f) - circleTexture.getSize().x / 2.0f, (y * gridSize + gridSize / 2.0f) - circleTexture.getSize().y / 2.0f);
+		board[x][y].setTexture(circleTexture, true);
+		board[x][y].setPosition((x * gridSize + gridSize / 2.0f) - board[x][y].getGlobalBounds().width / 2.0f, (y * gridSize + gridSize / 2.0f) - board[x][y].getGlobalBounds().height / 2.0f);
 	}
 	playerTurn = true;
 }
@@ -328,13 +301,13 @@ int Game::minmax(int depth, bool isMax, int alpha, int beta)
 		{
 			for (int j = 0; j < 3; j++)
 			{
-				if (board[i][j].getTexture() == nullptr)
+				if (board[i][j].getTexture() == &blank)
 				{
 					board[i][j].setTexture(circleTexture);
 
 					best = std::max(best, minmax(depth + 1, !isMax, alpha, beta));
 
-					board[i][j].setTexture(emptyTexture);
+					board[i][j].setTexture(blank);
 					alpha = std::max(alpha, best);
 					if (beta <= alpha) break;
 				}
@@ -349,13 +322,13 @@ int Game::minmax(int depth, bool isMax, int alpha, int beta)
 		{
 			for (int j = 0; j < 3; j++)
 			{
-				if (board[i][j].getTexture() == nullptr)
+				if (board[i][j].getTexture() == &blank)
 				{
 					board[i][j].setTexture(crossTexture);
-					
+
 					best = std::min(best, minmax(depth + 1, !isMax, alpha, beta));
 
-					board[i][j].setTexture(emptyTexture);
+					board[i][j].setTexture(blank);
 					beta = std::min(beta, best);
 					if (beta <= alpha) break;
 				}
@@ -363,4 +336,81 @@ int Game::minmax(int depth, bool isMax, int alpha, int beta)
 		}
 		return best;
 	}
+}
+
+void Game::setResult(int score)
+{
+	result.setCharacterSize(95);
+	result.setOrigin(result.getLocalBounds().width / 2, result.getLocalBounds().height / 2);
+	result.setPosition(256, 256-result.getLocalBounds().height/2.0f - 100);
+	result.setFillColor(sf::Color::Red);
+
+	if (score == -10)
+	{
+		result.setString("Player wins!");
+	}
+	else if (score == 10)
+	{
+		result.setString("Ai wins!");
+	}
+	else if (score == 0)
+	{
+		result.setString("It's a tie!");
+	}
+}
+
+void Game::restart()
+{
+	for (int i = 0; i < 3; i++)
+	{
+		for (int j = 0; j < 3; j++)
+		{
+			board[i][j].setTexture(blank, true);
+		}
+	}
+	result.setString("");
+	info.setString("");
+	isFinished = false;
+}
+
+void Game::setInfo()
+{
+	info.setCharacterSize(28); 
+	info.setOrigin(info.getLocalBounds().width / 2, info.getLocalBounds().height / 2);
+	info.setPosition(256, 256 - info.getLocalBounds().height / 2.0f - 30);
+	info.setFillColor(sf::Color::Blue);
+
+	info.setString("Press ESC to quit or SPACE to restart");
+}
+
+void Game::setLine(int x, int y, float angle)
+{
+	if (checkTie())
+	{
+		line.setSize(sf::Vector2f(0, 0));
+		line.setPosition(0, 0);
+		return;
+	}
+	int gridSize = 170;
+	line.setFillColor(sf::Color::Black);
+	if (angle == 0) {
+		line.setSize(sf::Vector2f(5, gridSize * 3));
+		line.setPosition(x * gridSize + gridSize / 2.0f - 2.5f, 0);
+	}
+	else if (angle == 90) {
+		line.setSize(sf::Vector2f(gridSize * 3, 5));
+		line.setPosition(x * gridSize, y * gridSize + gridSize / 2.0f - 2.5f);
+		line.setRotation(0);
+		return;
+	}
+	else if (angle == 45) {
+		line.setSize(sf::Vector2f(std::sqrt(2) * gridSize * 3, 5));
+		line.setPosition(0, 0);
+	}
+	else if (angle == 135) {
+		line.setSize(sf::Vector2f(std::sqrt(2) * gridSize * 3, 5));
+		line.setPosition(gridSize * 3, 0);
+	}
+
+	line.setRotation(angle);
 }
