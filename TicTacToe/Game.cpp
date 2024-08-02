@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <limits>
 
-Game::Game(bool playerTurn) : window(sf::VideoMode(512, 512), "TicTacToe", sf::Style::Default)
+Game::Game(bool playerTurn) : window(sf::VideoMode(512, 512), "TicTacToe", sf::Style::Close)
 {
 	if (!font.loadFromFile("images/Lato-Black.ttf"))
 	{
@@ -143,7 +143,7 @@ void Game::render()
 		}
 	}
 	if (isFinished) {
-		window.draw(line);
+		if(!checkTie()) window.draw(line);
 		window.draw(info);
 		window.draw(result);
 	}
@@ -385,14 +385,13 @@ void Game::setInfo()
 
 void Game::setLine(int x, int y, float angle)
 {
-	if (checkTie())
-	{
-		line.setSize(sf::Vector2f(0, 0));
-		line.setPosition(0, 0);
-		return;
-	}
+
+
 	int gridSize = 170;
 	line.setFillColor(sf::Color::Black);
+	
+	line.setRotation(angle);
+
 	if (angle == 0) {
 		line.setSize(sf::Vector2f(5, gridSize * 3));
 		line.setPosition(x * gridSize + gridSize / 2.0f - 2.5f, 0);
@@ -401,7 +400,6 @@ void Game::setLine(int x, int y, float angle)
 		line.setSize(sf::Vector2f(gridSize * 3, 5));
 		line.setPosition(x * gridSize, y * gridSize + gridSize / 2.0f - 2.5f);
 		line.setRotation(0);
-		return;
 	}
 	else if (angle == 45) {
 		line.setSize(sf::Vector2f(std::sqrt(2) * gridSize * 3, 5));
@@ -411,6 +409,4 @@ void Game::setLine(int x, int y, float angle)
 		line.setSize(sf::Vector2f(std::sqrt(2) * gridSize * 3, 5));
 		line.setPosition(gridSize * 3, 0);
 	}
-
-	line.setRotation(angle);
 }
